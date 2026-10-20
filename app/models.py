@@ -5,7 +5,6 @@ from sqlmodel import Field, SQLModel
 
 
 def get_utc_now() -> datetime:
-    """Return timezone-aware current UTC datetime."""
     return datetime.now(timezone.utc)
 
 
@@ -64,8 +63,8 @@ class Train(SQLModel, table=True):
     train_name: str = Field(nullable=False)
     source_station_code: str = Field(index=True, nullable=False)
     destination_station_code: str = Field(index=True, nullable=False)
-    departure_time: str = Field(nullable=False)  # e.g., "06:10"
-    arrival_time: str = Field(nullable=False)    # e.g., "11:20"
+    departure_time: str = Field(nullable=False)
+    arrival_time: str = Field(nullable=False)
     total_seats: int = Field(default=100, nullable=False)
     base_fare: float = Field(default=500.0, nullable=False)
     is_active: bool = Field(default=True, nullable=False)

@@ -24,12 +24,11 @@ from app.schemas import (
     UserResponse,
 )
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserRegister, session: Session = Depends(get_session)):
-    """Register a new user account."""
     existing_user = session.exec(select(User).where(User.email == user_in.email)).first()
     if existing_user:
         raise HTTPException(
@@ -37,7 +36,7 @@ def register(user_in: UserRegister, session: Session = Depends(get_session)):
             detail="A user with this email address already exists.",
         )
 
-    role = user_in.role.lower() if user_in.role else UserRole.PASSENGER
+    role = (user_in.role or "passenger").lower()
     if role not in [UserRole.PASSENGER, UserRole.ADMIN]:
         role = UserRole.PASSENGER
 
@@ -56,7 +55,6 @@ def register(user_in: UserRegister, session: Session = Depends(get_session)):
 
 @router.post("/login", response_model=Token)
 def login(login_data: UserLogin, session: Session = Depends(get_session)):
-    """Authenticate user with email and password and return a JWT access token."""
     user = session.exec(select(User).where(User.email == login_data.email)).first()
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
@@ -70,11 +68,9 @@ def login(login_data: UserLogin, session: Session = Depends(get_session)):
             detail="User account is deactivated. Contact administration.",
         )
 
-    access_token = create_access_token(
-        data={"sub": user.email, "role": user.role, "user_id": user.id}
-    )
+    token = create_access_token(data={"sub": user.email, "role": user.role, "user_id": user.id})
     return Token(
-        access_token=access_token,
+        access_token=token,
         token_type="bearer",
         role=user.role,
         user_id=user.id,
@@ -88,36 +84,22 @@ def logout(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """
-    Revoke current JWT token.
-    Stores the token in the server-side blacklist until expiration.
-    """
     token = credentials.credentials
-    # Blacklist until default access token expiration
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    blacklist_entry = TokenBlacklist(token=token, expires_at=expires_at)
-    session.add(blacklist_entry)
+    session.add(TokenBlacklist(token=token, expires_at=expires_at))
     session.commit()
-
     return {"message": "Successfully logged out. Token has been revoked and can no longer be used."}
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(request: ForgotPasswordRequest, session: Session = Depends(get_session)):
-    """
-    Initiate forgot password workflow.
-    Generates a secure, single-use, time-expiring reset token.
-    (Simulated development response returns the token for verification).
-    """
     user = session.exec(select(User).where(User.email == request.email)).first()
     if not user:
-        # Prevent user enumeration in production, but provide clear status
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No account found registered with this email address.",
         )
 
-    # Generate cryptographically secure reset token
     reset_token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.RESET_TOKEN_EXPIRE_MINUTES)
 
@@ -139,19 +121,12 @@ def forgot_password(request: ForgotPasswordRequest, session: Session = Depends(g
 
 @router.post("/reset-password")
 def reset_password(request: ResetPasswordRequest, session: Session = Depends(get_session)):
-    """
-    Reset user password using a valid single-use reset token.
-    Token must be unexpired and unused.
-    """
     db_token = session.exec(
         select(PasswordResetToken).where(PasswordResetToken.token == request.reset_token)
     ).first()
 
     if not db_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid password reset token.",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid password reset token.")
 
     if db_token.is_used:
         raise HTTPException(
@@ -160,7 +135,6 @@ def reset_password(request: ResetPasswordRequest, session: Session = Depends(get
         )
 
     now = datetime.now(timezone.utc)
-    # Ensure db_token.expires_at is timezone-aware for comparison
     token_expiry = db_token.expires_at
     if token_expiry.tzinfo is None:
         token_expiry = token_expiry.replace(tzinfo=timezone.utc)
@@ -173,12 +147,8 @@ def reset_password(request: ResetPasswordRequest, session: Session = Depends(get
 
     user = session.exec(select(User).where(User.email == db_token.email)).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Associated user account not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Associated user account not found.")
 
-    # Update password and invalidate token
     user.hashed_password = get_password_hash(request.new_password)
     db_token.is_used = True
 

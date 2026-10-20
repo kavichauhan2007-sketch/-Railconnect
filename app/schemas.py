@@ -3,12 +3,11 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
-# ================= User & Auth Schemas =================
 class UserRegister(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=100)
     password: str = Field(..., min_length=6, max_length=100)
-    role: Optional[str] = Field(default="passenger", description="Role: 'passenger' or 'admin'")
+    role: Optional[str] = "passenger"
 
 
 class UserLogin(BaseModel):
@@ -25,7 +24,7 @@ class Token(BaseModel):
 
 
 class TokenPayload(BaseModel):
-    sub: str  # email
+    sub: str
     role: str
     user_id: int
     exp: Optional[int] = None
@@ -62,10 +61,9 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6, max_length=100)
 
 
-# ================= Station Schemas =================
 class StationCreate(BaseModel):
-    code: str = Field(..., min_length=2, max_length=10, description="Station code, e.g. NDLS")
-    name: str = Field(..., min_length=2, max_length=100, description="Station name, e.g. New Delhi")
+    code: str = Field(..., min_length=2, max_length=10)
+    name: str = Field(..., min_length=2, max_length=100)
     city: str
     state: str
 
@@ -80,14 +78,13 @@ class StationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ================= Train Schemas =================
 class TrainCreate(BaseModel):
     train_number: str = Field(..., min_length=3, max_length=20)
     train_name: str = Field(..., min_length=2, max_length=100)
     source_station_code: str
     destination_station_code: str
-    departure_time: str = Field(..., description="Format HH:MM (24-hour), e.g. '06:10'")
-    arrival_time: str = Field(..., description="Format HH:MM (24-hour), e.g. '11:20'")
+    departure_time: str
+    arrival_time: str
     total_seats: int = Field(default=100, gt=0)
     base_fare: float = Field(default=500.0, gt=0)
     is_active: bool = True
@@ -120,7 +117,6 @@ class TrainResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ================= Schedule Schemas =================
 class TrainScheduleCreate(BaseModel):
     train_id: int
     journey_date: date
@@ -140,7 +136,6 @@ class TrainScheduleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ================= Train Search Schemas =================
 class TrainSearchResult(BaseModel):
     train_id: int
     train_number: str
@@ -156,14 +151,13 @@ class TrainSearchResult(BaseModel):
     is_active: bool
 
 
-# ================= Booking Schemas =================
 class BookingCreate(BaseModel):
     train_id: int
     journey_date: date
     passenger_name: str = Field(..., min_length=2, max_length=100)
     passenger_age: int = Field(..., ge=1, le=120)
-    passenger_gender: str = Field(..., description="'Male', 'Female', or 'Other'")
-    berth_preference: Optional[str] = Field(default="LOWER")
+    passenger_gender: str
+    berth_preference: Optional[str] = "LOWER"
     seats_booked: int = Field(default=1, ge=1, le=6)
 
 

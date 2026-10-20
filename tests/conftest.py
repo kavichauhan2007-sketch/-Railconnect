@@ -9,7 +9,6 @@ from app.database import get_session
 from app.main import app
 from app.models import Station, Train, TrainSchedule, User, UserRole
 
-# Use an in-memory SQLite database with StaticPool for tests
 TEST_DATABASE_URL = "sqlite:///:memory:"
 test_engine = create_engine(
     TEST_DATABASE_URL,
@@ -22,7 +21,6 @@ test_engine = create_engine(
 def session_fixture():
     SQLModel.metadata.create_all(test_engine)
     with Session(test_engine) as session:
-        # Seed test admin
         admin = User(
             email="admin@railconnect.com",
             full_name="Admin User",
@@ -30,7 +28,6 @@ def session_fixture():
             role=UserRole.ADMIN,
             is_active=True,
         )
-        # Seed test passenger
         passenger = User(
             email="passenger@railconnect.com",
             full_name="Passenger One",
@@ -38,7 +35,6 @@ def session_fixture():
             role=UserRole.PASSENGER,
             is_active=True,
         )
-        # Seed second passenger for ownership tests
         passenger2 = User(
             email="passenger2@railconnect.com",
             full_name="Passenger Two",
@@ -50,7 +46,6 @@ def session_fixture():
         session.add(passenger)
         session.add(passenger2)
 
-        # Seed stations
         ndls = Station(code="NDLS", name="New Delhi", city="New Delhi", state="Delhi")
         cnb = Station(code="CNB", name="Kanpur Central", city="Kanpur", state="UP")
         hwh = Station(code="HWH", name="Howrah", city="Kolkata", state="WB")
@@ -58,7 +53,6 @@ def session_fixture():
         session.add(cnb)
         session.add(hwh)
 
-        # Seed test train: New Delhi to Kanpur
         train = Train(
             train_number="12004",
             train_name="Lucknow Shatabdi",
@@ -74,7 +68,6 @@ def session_fixture():
         session.commit()
         session.refresh(train)
 
-        # Seed schedule for upcoming 3 days
         today = date.today()
         for i in range(3):
             j_date = today + timedelta(days=i)

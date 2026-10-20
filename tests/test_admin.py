@@ -80,7 +80,6 @@ def test_admin_update_and_deactivate_train(client: TestClient):
     token = get_token(client, "admin@railconnect.com", "Admin@12345")
     headers = {"Authorization": f"Bearer {token}"}
 
-    # 1. Update train base fare
     update_resp = client.put(
         "/api/v1/admin/trains/1",
         headers=headers,
@@ -89,12 +88,10 @@ def test_admin_update_and_deactivate_train(client: TestClient):
     assert update_resp.status_code == 200
     assert update_resp.json()["base_fare"] == 850.0
 
-    # 2. Deactivate train
     deactivate_resp = client.patch("/api/v1/admin/trains/1/deactivate", headers=headers)
     assert deactivate_resp.status_code == 200
     assert deactivate_resp.json()["is_active"] is False
 
-    # 3. Inactive train should not show in regular active search
     today = str(date.today())
     search_resp = client.get(
         f"/api/v1/trains/search?source=NDLS&destination=CNB&journey_date={today}"
@@ -102,7 +99,6 @@ def test_admin_update_and_deactivate_train(client: TestClient):
     assert search_resp.status_code == 200
     assert len(search_resp.json()) == 0
 
-    # 4. Reactivate train
     reactivate_resp = client.patch("/api/v1/admin/trains/1/activate", headers=headers)
     assert reactivate_resp.status_code == 200
     assert reactivate_resp.json()["is_active"] is True

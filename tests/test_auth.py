@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -82,7 +81,6 @@ def test_profile_with_valid_token(client: TestClient):
 
 
 def test_logout_and_token_revocation(client: TestClient):
-    # 1. Log in to get token
     login_resp = client.post(
         "/api/v1/auth/login",
         json={"email": "passenger@railconnect.com", "password": "Passenger@12345"},
@@ -90,22 +88,18 @@ def test_logout_and_token_revocation(client: TestClient):
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # 2. Verify token works
     assert client.get("/api/v1/users/me", headers=headers).status_code == 200
 
-    # 3. Log out to blacklist token
     logout_resp = client.post("/api/v1/auth/logout", headers=headers)
     assert logout_resp.status_code == 200
     assert "revoked" in logout_resp.json()["message"]
 
-    # 4. Attempt to use revoked token -> must fail with 401 Unauthorized
     revoked_resp = client.get("/api/v1/users/me", headers=headers)
     assert revoked_resp.status_code == 401
     assert "revoked" in revoked_resp.json()["detail"]
 
 
 def test_forgot_and_reset_password_flow(client: TestClient):
-    # 1. Request forgot password
     forgot_resp = client.post(
         "/api/v1/auth/forgot-password",
         json={"email": "passenger@railconnect.com"},
@@ -114,7 +108,6 @@ def test_forgot_and_reset_password_flow(client: TestClient):
     reset_token = forgot_resp.json()["reset_token"]
     assert reset_token is not None
 
-    # 2. Reset password using the token
     reset_resp = client.post(
         "/api/v1/auth/reset-password",
         json={
@@ -125,7 +118,6 @@ def test_forgot_and_reset_password_flow(client: TestClient):
     assert reset_resp.status_code == 200
     assert "successfully reset" in reset_resp.json()["message"]
 
-    # 3. Try to use the same token again -> should fail
     reuse_resp = client.post(
         "/api/v1/auth/reset-password",
         json={
@@ -136,7 +128,6 @@ def test_forgot_and_reset_password_flow(client: TestClient):
     assert reuse_resp.status_code == 400
     assert "already been used" in reuse_resp.json()["detail"]
 
-    # 4. Log in with the new password
     login_new = client.post(
         "/api/v1/auth/login",
         json={"email": "passenger@railconnect.com", "password": "NewSecurePassword456"},

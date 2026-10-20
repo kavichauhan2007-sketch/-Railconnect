@@ -1,5 +1,5 @@
-from datetime import date, datetime
-from typing import List, Optional
+from datetime import date
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, func, select
 
@@ -7,15 +7,10 @@ from app.database import get_session
 from app.models import Booking, BookingStatus, Train, TrainSchedule
 from app.schemas import TrainResponse, TrainSearchResult
 
-router = APIRouter(prefix="/trains", tags=["Trains & Search"])
+router = APIRouter(prefix="/trains", tags=["trains"])
 
 
 def get_available_seats_and_fare(session: Session, train: Train, journey_date: date) -> tuple[int, float]:
-    """
-    Calculate real-time seat availability and fare for a train on a given date.
-    Looks up explicit TrainSchedule first; if none exists, calculates from
-    train's total_seats minus active bookings.
-    """
     schedule = session.exec(
         select(TrainSchedule).where(
             TrainSchedule.train_id == train.id,
@@ -26,7 +21,6 @@ def get_available_seats_and_fare(session: Session, train: Train, journey_date: d
     if schedule:
         return schedule.available_seats, schedule.fare
 
-    # Calculate dynamically if schedule wasn't explicitly initialized
     booked_count = session.exec(
         select(func.coalesce(func.sum(Booking.seats_booked), 0)).where(
             Booking.train_id == train.id,
@@ -41,28 +35,22 @@ def get_available_seats_and_fare(session: Session, train: Train, journey_date: d
 
 @router.get("", response_model=List[TrainResponse])
 def get_all_trains(
-    active_only: bool = Query(True, description="Filter for active trains only"),
+    active_only: bool = True,
     session: Session = Depends(get_session),
 ):
-    """Get list of trains in the railway system."""
     query = select(Train)
     if active_only:
         query = query.where(Train.is_active == True)
-    trains = session.exec(query).all()
-    return trains
+    return session.exec(query).all()
 
 
 @router.get("/search", response_model=List[TrainSearchResult])
 def search_trains(
-    source: str = Query(..., description="Starting station code (e.g. NDLS)"),
-    destination: str = Query(..., description="Destination station code (e.g. CNB)"),
-    journey_date: date = Query(..., description="Journey date in YYYY-MM-DD format"),
+    source: str = Query(...),
+    destination: str = Query(...),
+    journey_date: date = Query(...),
     session: Session = Depends(get_session),
 ):
-    """
-    Search for active trains between starting and destination stations on a journey date.
-    Returns timings, fare, and real-time available seat count.
-    """
     src = source.upper().strip()
     dst = destination.upper().strip()
 
@@ -72,7 +60,6 @@ def search_trains(
             detail="Source and destination stations cannot be the same.",
         )
 
-    # Validate that journey date is not in the past
     today = date.today()
     if journey_date < today:
         raise HTTPException(
@@ -113,29 +100,21 @@ def search_trains(
 
 @router.get("/{train_id}", response_model=TrainResponse)
 def get_train_by_id(train_id: int, session: Session = Depends(get_session)):
-    """Get details of a specific train by ID."""
     train = session.get(Train, train_id)
     if not train:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Train with ID {train_id} not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Train with ID {train_id} not found.")
     return train
 
 
 @router.get("/{train_id}/availability")
 def check_seat_availability(
     train_id: int,
-    journey_date: date = Query(..., description="Journey date in YYYY-MM-DD format"),
+    journey_date: date = Query(...),
     session: Session = Depends(get_session),
 ):
-    """Check seat availability and ticket fare for a specific train on a date."""
     train = session.get(Train, train_id)
     if not train:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Train with ID {train_id} not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Train with ID {train_id} not found.")
 
     avail_seats, fare = get_available_seats_and_fare(session, train, journey_date)
     return {

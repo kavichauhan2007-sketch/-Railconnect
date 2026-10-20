@@ -7,36 +7,32 @@ from app.models import Station, Train, TrainSchedule, User, UserRole
 
 
 def seed_data():
-    """Populate database with fictional railway demo data."""
     init_db()
     with Session(engine) as session:
-        # 1. Create Default Admin User
         admin_email = "admin@railconnect.com"
         admin = session.exec(select(User).where(User.email == admin_email)).first()
         if not admin:
             admin = User(
                 email=admin_email,
-                full_name="RailConnect Administrator",
+                full_name="RailConnect Admin",
                 hashed_password=get_password_hash("Admin@12345"),
                 role=UserRole.ADMIN,
                 is_active=True,
             )
             session.add(admin)
 
-        # 2. Create Default Passenger User
         passenger_email = "passenger@railconnect.com"
         passenger = session.exec(select(User).where(User.email == passenger_email)).first()
         if not passenger:
             passenger = User(
                 email=passenger_email,
-                full_name="Kavish Passenger",
+                full_name="Tushar Chauhan",
                 hashed_password=get_password_hash("Passenger@12345"),
                 role=UserRole.PASSENGER,
                 is_active=True,
             )
             session.add(passenger)
 
-        # 3. Create Railway Stations
         stations = [
             Station(code="NDLS", name="New Delhi Railway Station", city="New Delhi", state="Delhi"),
             Station(code="CNB", name="Kanpur Central", city="Kanpur", state="Uttar Pradesh"),
@@ -52,8 +48,6 @@ def seed_data():
 
         session.commit()
 
-        # 4. Create Fictional Trains
-        # Note: The challenge specifically highlights New Delhi (NDLS) to Kanpur (CNB)
         trains_data = [
             {
                 "train_number": "12004",
@@ -122,7 +116,6 @@ def seed_data():
                 session.refresh(t)
             created_trains.append(t)
 
-        # 5. Pre-create schedules for the next 7 days for the demo trains
         today = date.today()
         for train in created_trains:
             for day_offset in range(7):
@@ -144,7 +137,6 @@ def seed_data():
                     session.add(sched)
 
         session.commit()
-        print("Database seeded with fictional railway data successfully!")
 
 
 if __name__ == "__main__":

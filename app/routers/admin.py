@@ -1,6 +1,6 @@
 from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.auth import get_current_admin
@@ -17,17 +17,15 @@ from app.schemas import (
     TrainUpdate,
 )
 
-router = APIRouter(prefix="/admin", tags=["Admin Operations"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-# ================= Station Management =================
 @router.post("/stations", response_model=StationResponse, status_code=status.HTTP_201_CREATED)
 def create_station(
     station_in: StationCreate,
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """Add a new railway station. Admin only."""
     code = station_in.code.upper().strip()
     existing = session.exec(select(Station).where(Station.code == code)).first()
     if existing:
@@ -52,22 +50,15 @@ def list_stations(
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """List all stations. Admin only."""
-    stations = session.exec(select(Station)).all()
-    return stations
+    return session.exec(select(Station)).all()
 
 
-# ================= Train Management =================
 @router.post("/trains", response_model=TrainResponse, status_code=status.HTTP_201_CREATED)
 def create_train(
     train_in: TrainCreate,
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """
-    Add a new train with route, timings, fare, and total seats.
-    Admin only.
-    """
     train_number = train_in.train_number.strip()
     existing = session.exec(select(Train).where(Train.train_number == train_number)).first()
     if existing:
@@ -76,7 +67,6 @@ def create_train(
             detail=f"Train with number '{train_number}' already exists.",
         )
 
-    # Validate stations exist (or create if needed for fictional flexibility)
     src_code = train_in.source_station_code.upper().strip()
     dst_code = train_in.destination_station_code.upper().strip()
 
@@ -110,13 +100,9 @@ def update_train(
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """Update train information, routes, timings, seats, or fare. Admin only."""
     train = session.get(Train, train_id)
     if not train:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Train with ID {train_id} not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Train with ID {train_id} not found.")
 
     update_dict = train_update.model_dump(exclude_unset=True)
     for key, value in update_dict.items():
@@ -137,13 +123,9 @@ def deactivate_train(
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """Deactivate a train. Inactive trains will not appear in search results. Admin only."""
     train = session.get(Train, train_id)
     if not train:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Train with ID {train_id} not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Train with ID {train_id} not found.")
     train.is_active = False
     session.add(train)
     session.commit()
@@ -157,13 +139,9 @@ def activate_train(
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """Reactivate a train. Admin only."""
     train = session.get(Train, train_id)
     if not train:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Train with ID {train_id} not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Train with ID {train_id} not found.")
     train.is_active = True
     session.add(train)
     session.commit()
@@ -171,25 +149,16 @@ def activate_train(
     return train
 
 
-# ================= Schedule / Seat Availability =================
 @router.post("/schedules", response_model=TrainScheduleResponse, status_code=status.HTTP_201_CREATED)
 def set_train_schedule(
     schedule_in: TrainScheduleCreate,
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """
-    Set or update seat availability and fare for a specific train and date.
-    Admin only.
-    """
     train = session.get(Train, schedule_in.train_id)
     if not train:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Train with ID {schedule_in.train_id} not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Train with ID {schedule_in.train_id} not found.")
 
-    # Check if a schedule already exists for this train on this journey date
     existing_schedule = session.exec(
         select(TrainSchedule).where(
             TrainSchedule.train_id == schedule_in.train_id,
@@ -219,15 +188,12 @@ def set_train_schedule(
     return schedule
 
 
-# ================= Booking Oversight =================
 @router.get("/bookings", response_model=List[BookingResponse])
 def view_all_bookings(
     session: Session = Depends(get_session),
     admin: User = Depends(get_current_admin),
 ):
-    """View all booking records across the system. Admin only."""
     bookings = session.exec(select(Booking).order_by(Booking.booked_at.desc())).all()
-    # Enrich response with train details
     result = []
     for b in bookings:
         train = session.get(Train, b.train_id)
