@@ -81,8 +81,8 @@ RailConnect is a mini railway reservation platform engineered to address real-wo
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR-USERNAME/railconnect.git
-cd railconnect
+git clone https://github.com/kavichauhan2007-sketch/-Railconnect.git
+cd -Railconnect
 ```
 
 ### 2. Set Up Virtual Environment
@@ -226,7 +226,7 @@ git commit -m "Initial RailConnect backend project with tests and screenshots"
 git branch -M main
 
 # 6. Add your GitHub remote repository
-git remote add origin https://github.com/YOUR-USERNAME/railconnect.git
+git remote add origin https://github.com/kavichauhan2007-sketch/-Railconnect.git
 
 # 7. Push code to GitHub
 git push -u origin main
